@@ -13,12 +13,16 @@ on:
         required: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-
+    outputs:
+      image_tag: ${{ steps.set_tag.outputs.tag }}
     steps:
-      - name: Deploy ${{ inputs.app_name }}
-        id: deploy_step
+      - name: Set Image Tag
+        id: set_tag
+        run: echo "tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image (remote)
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: marcusabukari.nl
@@ -26,25 +30,38 @@ jobs:
           password: ${{ secrets.ssh_password }}
           port: 22
           script: |
-            security -v unlock-keychain -p "${{ secrets.ssh_password }}" ~/Library/Keychains/login.keychain-db
-
-            export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
-
             cd Projects/${{ inputs.app_name }}
-
             git stash
             git fetch
             git reset origin/main --hard
-            
-            docker build -t ${{ inputs.app_name }}:latest .
-            docker tag ${{ inputs.app_name }}:latest localhost:3010/${{ inputs.app_name }}:latest                                      
+
+            docker build -t ${{ inputs.app_name }}:${{ github.sha }} .
+            docker tag ${{ inputs.app_name }}:${{ github.sha }} localhost:3010/${{ inputs.app_name }}:latest
             docker push localhost:3010/${{ inputs.app_name }}:latest
-            
-            cd ../k8s
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Kubernetes
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: marcusabukari.nl
+          username: marcusabukari
+          password: ${{ secrets.ssh_password }}
+          port: 22
+          script: |
+            export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
+            cd Projects/k8s
             helm upgrade --install homelab .
 
+  notify:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
       - name: Slack Notification - Success
-        if: success()
+        if: ${{ success() }}
         uses: slackapi/slack-github-action@v1.25.0
         with:
           payload: |
@@ -62,7 +79,7 @@ jobs:
           SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
 
       - name: Slack Notification - Failure
-        if: failure()
+        if: ${{ failure() }}
         uses: slackapi/slack-github-action@v1.25.0
         with:
           payload: |
