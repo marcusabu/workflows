@@ -1,5 +1,10 @@
 # Workflows
 
+## Prerequisites 
+Set the following secrets:
+- `SSH_PASSWORD`
+- `SLACK_WEBHOOK_URL`
+
 ## Example usage
 ```
 name: Deploy
@@ -13,7 +18,8 @@ jobs:
   Deploy:
     uses: marcusabu/workflows/.github/workflows/deploy.yml@main
     with:
-      app_name: [appName]
+      app_name: ${{ github.event.repository.name }}
     secrets:
       ssh_password: ${{ secrets.SSH_PASSWORD }}
+      slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
 ```
