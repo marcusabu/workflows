@@ -30,7 +30,12 @@ jobs:
           password: ${{ secrets.ssh_password }}
           port: 22
           script: |
+            security -v unlock-keychain -p "${{ secrets.ssh_password }}" ~/Library/Keychains/login.keychain-db
+
+            export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
+
             cd Projects/${{ inputs.app_name }}
+            
             git stash
             git fetch
             git reset origin/main --hard
