@@ -9,12 +9,16 @@ on:
     secrets:
       ssh_password:
         required: true
+      slack_webhook_url:
+        required: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Deploy ${{ inputs.app_name }}
+        id: deploy_step
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: marcusabukari.nl
@@ -38,3 +42,39 @@ jobs:
             
             cd ../k8s
             helm upgrade --install homelab .
+
+      - name: Slack Notification - Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "✅ *Deploy successful* for *${{ inputs.app_name }}* on `${{ github.ref_name }}` by `${{ github.actor }}`.",
+              "attachments": [
+                {
+                  "color": "good",
+                  "footer": "GitHub Actions • ${{ github.workflow }}",
+                  "ts": "$(date +%s)"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
+
+      - name: Slack Notification - Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          payload: |
+            {
+              "text": "❌ *Deploy failed* for *${{ inputs.app_name }}* on `${{ github.ref_name }}` by `${{ github.actor }}`.",
+              "attachments": [
+                {
+                  "color": "danger",
+                  "footer": "GitHub Actions • ${{ github.workflow }}",
+                  "ts": "$(date +%s)"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.slack_webhook_url }}
