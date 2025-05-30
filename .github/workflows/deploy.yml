@@ -58,7 +58,9 @@ jobs:
           script: |
             export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
             cd Projects/k8s
-            helm upgrade --install homelab .
+            # Doesnt work with latest tag
+            # helm upgrade --install homelab .
+            kubectl rollout restart deployment ${{ inputs.app_name }}
 
   notify:
     needs: [build, deploy]
