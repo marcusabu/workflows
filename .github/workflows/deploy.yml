@@ -29,6 +29,7 @@ jobs:
           username: marcusabukari
           password: ${{ secrets.ssh_password }}
           port: 22
+          script_stop: true
           script: |
             security -v unlock-keychain -p "${{ secrets.ssh_password }}" ~/Library/Keychains/login.keychain-db
 
